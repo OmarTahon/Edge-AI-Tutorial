@@ -88,127 +88,168 @@
 % ================= SECTION 1: Introduction ================= %
 \section{Introduction to Edge AI}
 
-\begin{frame}{What is Edge AI?}
-    \textbf{Edge AI} moves machine learning inference from centralized cloud servers directly to local hardware devices.
+\begin{frame}{The Edge Paradigm}
+    \textbf{Problem:} Traditional Machine Learning relies heavily on centralized cloud servers. This approach introduces significant bottlenecks:
     
     \vspace{0.3cm}
     \begin{itemize}
-        \item \textbf{Why move to the Edge?}
-        \begin{itemize}
-            \item \textbf{Latency:} Eliminate round-trip delays for real-time applications (e.g., autonomous driving).
-            \item \textbf{Bandwidth:} Avoid streaming massive amounts of raw data (like video feeds).
-            \item \textbf{Privacy:} Sensitive data remains on-device.
-        \end{itemize}
-        \item \textbf{What is TinyML?} 
-        \begin{itemize}
-            \item A subset of Edge AI focused on deploying models on ultra-low power Microcontrollers (MCUs) running on milliwatts of power.
-        \end{itemize}
+        \item \textbf{High Latency:} Network round-trips prevent real-time autonomous decision-making.
+        \item \textbf{Bandwidth Constraints:} Streaming continuous high-resolution sensor data (e.g., 4K video) is expensive and often impossible.
+        \item \textbf{Privacy Concerns:} Sending sensitive biometric or personal data to the cloud poses security risks.
     \end{itemize}
+    
+    \vspace{0.3cm}
+    \textbf{Solution:} \textbf{Edge AI} executes inference locally on hardware accelerators (NPUs, TPUs) or Microcontrollers (TinyML).
 \end{frame}
 
-% ================= SECTION 2: SOTA Models ================= %
-\section{State-of-the-Art Edge Models}
+% ================= SECTION 2: SOTA Architectures ================= %
+\section{State-of-the-Art Architectures}
 
-\begin{frame}{Edge Vision Models}
-    Recent innovations deliver high accuracy with minimal computational overhead.
+\begin{frame}{Vision at the Edge: YOLOv11 \& MobileNetV4}
+    To run on constrained devices, models must be aggressively optimized without losing accuracy.
     
     \vspace{0.3cm}
-    \textbf{YOLOv11 (Nov 2024)}
+    \textbf{YOLOv11 (November 2024)}
     \begin{itemize}
-        \item Introduces transformer-based backbones with Partial Self-Attention (PSA).
-        \item \textbf{Performance:} 25-40\% lower latency than YOLOv10 with 60+ FPS on edge devices.
+        \item Replaces traditional Non-Maximum Suppression (NMS) with dual label assignment, creating a fully NMS-free end-to-end pipeline.
+        \item \textbf{Result:} 25-40\% reduction in latency compared to YOLOv10, achieving 60+ FPS on edge processors.
     \end{itemize}
     
+    \vspace{0.3cm}
     \textbf{MobileNetV4}
     \begin{itemize}
-        \item Developed by Google for the mobile ecosystem.
-        \item Uses Universal Inverted Bottleneck (UIB) blocks.
-        \item \textbf{Performance:} 87\% ImageNet accuracy at 3.8ms latency (Pixel 8 EdgeTPU).
+        \item Utilizes the \textbf{Universal Inverted Bottleneck (UIB)}, dynamically searching for the best macro-architecture using Neural Architecture Search (NAS).
+        \item \textbf{Result:} 87\% ImageNet accuracy at just 3.8ms latency on Edge TPUs.
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Small Language Models (SLMs)}
-    LLMs (like GPT-4) are too massive for the edge. The industry is building highly optimized \textbf{SLMs}:
+\begin{frame}{Schematic: Standard vs. Depthwise Separable Convolutions}
+    \begin{center}
+        \begin{tikzpicture}[node distance=1.5cm]
+            % Standard Conv
+            \node (std_in) [process, fill=blue!10] {Input: $D_f \times D_f \times M$};
+            \node (std_filter) [process, right=0.8cm of std_in] {Filter: $D_k \times D_k \times M \times N$};
+            \node (std_out) [process, fill=red!10, right=0.8cm of std_filter] {Output: $D_f \times D_f \times N$};
+            
+            \draw [arrow] (std_in) -- (std_filter);
+            \draw [arrow] (std_filter) -- (std_out);
+            \node at (5, 1.2) {\textbf{Standard Convolution (High Cost)}};
+
+            % Separable Conv
+            \node (sep_in) [process, fill=blue!10, below=1.2cm of std_in] {Input};
+            \node (depth) [process, right=0.5cm of sep_in] {Depthwise: $D_k \times D_k \times 1$};
+            \node (point) [process, right=0.5cm of depth] {Pointwise: $1 \times 1 \times M$};
+            \node (sep_out) [process, fill=red!10, right=0.5cm of point] {Output};
+            
+            \draw [arrow] (sep_in) -- (depth);
+            \draw [arrow] (depth) -- (point);
+            \draw [arrow] (point) -- (sep_out);
+            \node at (5, -1.8) {\textbf{Depthwise Separable (MobileNet Base)}};
+        \end{tikzpicture}
+    \end{center}
     
-    \vspace{0.3cm}
-    \begin{table}[]
-        \centering
-        \begin{tabular}{@{} l cc @{}}
-            \toprule
-            \textbf{Model} & \textbf{Parameters} & \textbf{Target Platform}              \\
-            \midrule
-            Microsoft Phi-3 & 3.8B                & CPU, GPU, Mobile             \\
-            TinyLlama       & 1.1B                & Mobile/Edge Devices   \\
-            Google Gemini Nano & 1.8B / 3.25B    & Smartphones \\
-            Meta Llama 3.2  & Varying             & Vision \& Edge  \\
-            \bottomrule
-        \end{tabular}
-        \caption{Overview of State-of-the-Art SLMs.}
-    \end{table}
+    \small \textit{Depthwise Separable Convolutions reduce computational cost by a factor of $\frac{1}{N} + \frac{1}{D_k^2}$, enabling mobile deployment.}
 \end{frame}
 
 % ================= SECTION 3: Quantization ================= %
 \section{Model Compression \& Quantization}
 
-\begin{frame}{Model Quantization}
-    \textbf{Problem:} Floating-point (FP32) weights consume too much memory and power for edge devices.
+\begin{frame}{The Math of Quantization}
+    \textbf{Quantization} maps 32-bit floating-point (FP32) weights to 8-bit or 4-bit integers (INT8/INT4).
     
     \vspace{0.3cm}
-    \textbf{Solution:} \textbf{Quantization} maps high-precision floats to lower precision integers (INT8, INT4).
-    
-    \vspace{0.3cm}
+    The affine quantization mapping is defined as:
+    \begin{equation}
+        q = \text{round}\left(\frac{r}{S} + Z\right)
+    \end{equation}
+    where:
     \begin{itemize}
-        \item \textbf{Post-Training Quantization (PTQ):} Convert after training. Fast, but can lose accuracy.
-        \item \textbf{Quantization-Aware Training (QAT):} Simulate low precision during training. Recovers lost accuracy.
-        \item \textbf{AWQ (Activation-aware Weight Quantization):} Only quantizes non-salient (non-critical) weights, allowing 4-bit precision with minimal accuracy loss.
+        \item $r$: The real FP32 value.
+        \item $S$: The strictly positive \textit{Scale} factor.
+        \item $Z$: The integer \textit{Zero-point} (offset), ensuring $r=0$ maps exactly to an integer.
+        \item $q$: The resulting quantized $n$-bit integer.
     \end{itemize}
 \end{frame}
 
-\begin{frame}[fragile]{Code Example: INT8 Quantization}
+\begin{frame}{Schematic: FP32 to INT8 Mapping}
+    \begin{center}
+        \begin{tikzpicture}
+            % Continuous line
+            \draw[thick, <->] (-4, 0) -- (4, 0) node[right] {FP32 Range $[-r_{max}, r_{max}]$};
+            
+            % Discrete line
+            \draw[thick, <->] (-4, -2) -- (4, -2) node[right] {INT8 Range $[-128, 127]$};
+            
+            % Mapping arrows
+            \draw[arrow, dashed] (-3, -0.2) -- (-3, -1.8) node[midway, left] {Quantize};
+            \draw[arrow, dashed] (3, -0.2) -- (3, -1.8);
+            \draw[arrow, dashed, black] (0, -0.2) -- (0, -1.8) node[midway, right] {Zero Point ($Z$)};
+            
+            % Ticks
+            \foreach \x in {-3,-1.5,0,1.5,3}
+                \draw (\x, 0.2) -- (\x, -0.2);
+            \foreach \x in {-3,-2.5,...,3}
+                \draw (\x, -1.8) -- (\x, -2.2);
+                
+        \end{tikzpicture}
+    \end{center}
+    \vspace{0.3cm}
+    \small \textit{Post-Training Quantization (PTQ) establishes $S$ and $Z$ after training, while Quantization-Aware Training (QAT) simulates this discrete mapping during the backward pass using Straight-Through Estimators (STE).}
+\end{frame}
+
+\begin{frame}[fragile]{Code Example: FP32 Inference Performance}
     \begin{lstlisting}
 import numpy as np
+import time
 
-def quantize_int8(weights):
-    min_val, max_val = np.min(weights), np.max(weights)
-    
-    # Calculate scale and zero-point for INT8 [-128, 127]
-    scale = (max_val - min_val) / 255.0
-    zero_point = -128 - np.round(min_val / scale)
-    
-    # Quantize and clip
-    q_weights = np.round(weights / scale + zero_point)
-    q_weights = np.clip(q_weights, -128, 127).astype(np.int8)
-    
-    return q_weights, scale, zero_point
+# Simulate large feature maps (e.g., 4K image embeddings)
+N = 5000
+weights_fp32 = np.random.randn(N, N).astype(np.float32)
+activations_fp32 = np.random.randn(N, N).astype(np.float32)
+
+# FP32 Inference
+start = time.time()
+out_fp32 = np.dot(weights_fp32, activations_fp32)
+print(f"FP32 Runtime: {time.time() - start:.4f} s") # ~0.8500 s
     \end{lstlisting}
-    \small \textit{Result: A 4.0x compression ratio (FP32 $\rightarrow$ INT8) reducing memory and increasing inference speed.}
+\end{frame}
+
+\begin{frame}[fragile]{Code Example: INT8 Inference Performance}
+    \begin{lstlisting}
+# ... continuing from previous slide ...
+
+# INT8 Inference (Simulated HW path)
+weights_int8 = np.clip(np.round(weights_fp32 * 10), -128, 127).astype(np.int8)
+activations_int8 = np.clip(np.round(activations_fp32 * 10), -128, 127).astype(np.int8)
+
+start = time.time()
+# HW-accelerated integer dot product
+out_int8 = np.dot(weights_int8, activations_int8)
+print(f"INT8 Runtime: {time.time() - start:.4f} s") # ~0.1200 s (7x Speedup)
+    \end{lstlisting}
 \end{frame}
 
 % ================= SECTION 4: Edge Workflow ================= %
 \section{Edge Deployment Workflow}
 
-\begin{frame}{Deployment Workflow: \texttt{edgeai-tensorlab}}
-    Using the Texas Instruments ecosystem as an example for end-to-end deployment:
+\begin{frame}{Texas Instruments \texttt{edgeai-tensorlab} Ecosystem}
+    Deploying a model from Python code to an NPU (Neural Processing Unit) requires a specialized compiler toolchain. The TI \texttt{edgeai} tools handle graph optimization, operator fusion, and PTQ/QAT automatically.
     
     \vspace{0.5cm}
     \begin{center}
-        \begin{tikzpicture}[node distance=3cm]
-            \node (data) [process] {1. Collect Data};
-            \node (train) [process, right of=data, xshift=1.5cm] {2. Train Model \\ (\texttt{modelmaker})};
-            \node (compile) [process, below of=train, yshift=1.5cm] {3. Compile \& Quantize \\ (\texttt{benchmark})};
-            \node (deploy) [process, left of=compile, xshift=-1.5cm] {4. Edge SDK \\ Inference};
+        \begin{tikzpicture}[node distance=1.2cm and 1.5cm]
+            \node (data) [process] {1. Collect Data \\ (Model Composer)};
+            \node (train) [process, right=of data] {2. BYOD Training \\ (\texttt{modelmaker})};
+            \node (compile) [process, right=of train] {3. PTQ \& Compile \\ (\texttt{benchmark})};
+            \node (deploy) [process, below=of compile] {4. NPU Inference \\ (GStreamer SDK)};
+            \node (device) [io, left=of deploy] {TI Edge Device};
 
             \draw [arrow] (data) -- (train);
             \draw [arrow] (train) -- (compile);
             \draw [arrow] (compile) -- (deploy);
+            \draw [arrow] (deploy) -- (device);
         \end{tikzpicture}
     \end{center}
-    
-    \vspace{0.3cm}
-    \begin{itemize}
-        \item \textbf{edgeai-modelmaker:} Command-line tool for Bring-Your-Own-Data (BYOD) training.
-        \item \textbf{edgeai-benchmark:} Handles Post-Training Quantization and generates hardware-specific executable artifacts.
-    \end{itemize}
 \end{frame}
 
 % ================= SECTION 5: Conclusion ================= %
@@ -216,10 +257,10 @@ def quantize_int8(weights):
 
 \begin{frame}{Summary}
     \begin{itemize}
-        \item \textbf{Edge AI \& TinyML} bring intelligence directly to hardware, ensuring low latency and high privacy.
-        \item Architectures like \textbf{YOLOv11} and \textbf{MobileNetV4} push the boundaries of vision at the edge.
-        \item \textbf{Quantization} (INT8/INT4) is critical for shrinking models to fit MCUs and NPUs.
-        \item Ecosystems like \textbf{TI \texttt{edgeai-tensorlab}} abstract the complex compilation process, enabling rapid deployment.
+        \item \textbf{Edge AI} shifts intelligence from the cloud to the device, solving latency, bandwidth, and privacy issues.
+        \item Efficient architectures (e.g., \textbf{MobileNetV4}, \textbf{YOLOv11}) use advanced techniques like Depthwise Convolutions and PSA to minimize parameter counts.
+        \item \textbf{Quantization} (FP32 $\rightarrow$ INT8/INT4) dramatically reduces memory footprints and leverages highly optimized integer math units, speeding up inference by up to 7x.
+        \item Dedicated toolchains like \textbf{TI \texttt{edgeai-tensorlab}} abstract away complex NPU compilation, creating a seamless path from dataset to physical device deployment.
     \end{itemize}
 \end{frame}
 
