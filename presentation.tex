@@ -1,0 +1,235 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{default}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{forest}
+\usepackage{multirow}
+\usepackage{
+    booktabs,
+    palatino,
+    subcaption
+}
+\usepackage[default]{opensans}
+
+\usetheme{Boadilla}
+\useinnertheme{circles}
+\useoutertheme{miniframes}
+\setbeamertemplate{navigation symbols}{}
+
+% University Theme Colors
+\definecolor{primaryColor}{RGB}{0,0,0}
+\definecolor{secondaryColor}{RGB}{255,0,0}
+
+\setbeamercolor{structure}{fg=primaryColor}
+\setbeamercolor{palette primary}{bg=primaryColor, fg=white}
+\setbeamercolor{palette secondary}{bg=secondaryColor, fg=white}
+\setbeamercolor{title}{bg=primaryColor, fg=white}
+\usepackage{graphicx, tikz, amsmath, pgfplots, xcolor}
+\usepackage[algo2e]{algorithm2e}
+\usetikzlibrary{shapes.geometric, arrows, positioning, matrix, calc, fit}
+\pgfplotsset{compat=1.18}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{listings}
+\usepackage{hyperref}
+
+% Define TikZ styles for schematics
+\tikzstyle{process} = [rectangle, minimum width=2.5cm, minimum height=1cm, align=center, draw=primaryColor, fill=gray!10, text=primaryColor, thick, rounded corners]
+\tikzstyle{decision} = [diamond, minimum width=2.5cm, minimum height=1cm, align=center, draw=primaryColor, fill=secondaryColor!20, text=primaryColor, thick]
+\tikzstyle{io} = [trapezium, trapezium left angle=70, trapezium right angle=110, minimum width=2.5cm, minimum height=1cm, align=center, draw=primaryColor, fill=blue!10, text=primaryColor, thick]
+\tikzstyle{arrow} = [thick,->,>=stealth, secondaryColor]
+
+% Code Listing Style
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.96,0.96,0.96}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{secondaryColor},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=none,                    
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle, language=Python}
+
+% Title page details
+\title[Edge AI \& TinyML]{Edge AI and TinyML}
+\subtitle{Deploying Intelligence on Constrained Devices\\ CSE 521: Embedded Machine Learning}
+\author{Omar Tahon\\ID: 022025001}
+\date{May 19, 2026}
+
+\begin{document}
+
+% Title Slide
+\begin{frame}
+    \titlepage
+\end{frame}
+
+% Outline Slide
+\begin{frame}{Outline}
+    \tableofcontents
+\end{frame}
+
+% ================= SECTION 1: Introduction ================= %
+\section{Introduction to Edge AI}
+
+\begin{frame}{What is Edge AI?}
+    \textbf{Edge AI} moves machine learning inference from centralized cloud servers directly to local hardware devices.
+    
+    \vspace{0.3cm}
+    \begin{itemize}
+        \item \textbf{Why move to the Edge?}
+        \begin{itemize}
+            \item \textbf{Latency:} Eliminate round-trip delays for real-time applications (e.g., autonomous driving).
+            \item \textbf{Bandwidth:} Avoid streaming massive amounts of raw data (like video feeds).
+            \item \textbf{Privacy:} Sensitive data remains on-device.
+        \end{itemize}
+        \item \textbf{What is TinyML?} 
+        \begin{itemize}
+            \item A subset of Edge AI focused on deploying models on ultra-low power Microcontrollers (MCUs) running on milliwatts of power.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+% ================= SECTION 2: SOTA Models ================= %
+\section{State-of-the-Art Edge Models}
+
+\begin{frame}{Edge Vision Models}
+    Recent innovations deliver high accuracy with minimal computational overhead.
+    
+    \vspace{0.3cm}
+    \textbf{YOLOv11 (Nov 2024)}
+    \begin{itemize}
+        \item Introduces transformer-based backbones with Partial Self-Attention (PSA).
+        \item \textbf{Performance:} 25-40\% lower latency than YOLOv10 with 60+ FPS on edge devices.
+    \end{itemize}
+    
+    \textbf{MobileNetV4}
+    \begin{itemize}
+        \item Developed by Google for the mobile ecosystem.
+        \item Uses Universal Inverted Bottleneck (UIB) blocks.
+        \item \textbf{Performance:} 87\% ImageNet accuracy at 3.8ms latency (Pixel 8 EdgeTPU).
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Small Language Models (SLMs)}
+    LLMs (like GPT-4) are too massive for the edge. The industry is building highly optimized \textbf{SLMs}:
+    
+    \vspace{0.3cm}
+    \begin{table}[]
+        \centering
+        \begin{tabular}{@{} l cc @{}}
+            \toprule
+            \textbf{Model} & \textbf{Parameters} & \textbf{Target Platform}              \\
+            \midrule
+            Microsoft Phi-3 & 3.8B                & CPU, GPU, Mobile             \\
+            TinyLlama       & 1.1B                & Mobile/Edge Devices   \\
+            Google Gemini Nano & 1.8B / 3.25B    & Smartphones \\
+            Meta Llama 3.2  & Varying             & Vision \& Edge  \\
+            \bottomrule
+        \end{tabular}
+        \caption{Overview of State-of-the-Art SLMs.}
+    \end{table}
+\end{frame}
+
+% ================= SECTION 3: Quantization ================= %
+\section{Model Compression \& Quantization}
+
+\begin{frame}{Model Quantization}
+    \textbf{Problem:} Floating-point (FP32) weights consume too much memory and power for edge devices.
+    
+    \vspace{0.3cm}
+    \textbf{Solution:} \textbf{Quantization} maps high-precision floats to lower precision integers (INT8, INT4).
+    
+    \vspace{0.3cm}
+    \begin{itemize}
+        \item \textbf{Post-Training Quantization (PTQ):} Convert after training. Fast, but can lose accuracy.
+        \item \textbf{Quantization-Aware Training (QAT):} Simulate low precision during training. Recovers lost accuracy.
+        \item \textbf{AWQ (Activation-aware Weight Quantization):} Only quantizes non-salient (non-critical) weights, allowing 4-bit precision with minimal accuracy loss.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Code Example: INT8 Quantization}
+    \begin{lstlisting}
+import numpy as np
+
+def quantize_int8(weights):
+    min_val, max_val = np.min(weights), np.max(weights)
+    
+    # Calculate scale and zero-point for INT8 [-128, 127]
+    scale = (max_val - min_val) / 255.0
+    zero_point = -128 - np.round(min_val / scale)
+    
+    # Quantize and clip
+    q_weights = np.round(weights / scale + zero_point)
+    q_weights = np.clip(q_weights, -128, 127).astype(np.int8)
+    
+    return q_weights, scale, zero_point
+    \end{lstlisting}
+    \small \textit{Result: A 4.0x compression ratio (FP32 $\rightarrow$ INT8) reducing memory and increasing inference speed.}
+\end{frame}
+
+% ================= SECTION 4: Edge Workflow ================= %
+\section{Edge Deployment Workflow}
+
+\begin{frame}{Deployment Workflow: \texttt{edgeai-tensorlab}}
+    Using the Texas Instruments ecosystem as an example for end-to-end deployment:
+    
+    \vspace{0.5cm}
+    \begin{center}
+        \begin{tikzpicture}[node distance=3cm]
+            \node (data) [process] {1. Collect Data};
+            \node (train) [process, right of=data, xshift=1.5cm] {2. Train Model \\ (\texttt{modelmaker})};
+            \node (compile) [process, below of=train, yshift=1.5cm] {3. Compile \& Quantize \\ (\texttt{benchmark})};
+            \node (deploy) [process, left of=compile, xshift=-1.5cm] {4. Edge SDK \\ Inference};
+
+            \draw [arrow] (data) -- (train);
+            \draw [arrow] (train) -- (compile);
+            \draw [arrow] (compile) -- (deploy);
+        \end{tikzpicture}
+    \end{center}
+    
+    \vspace{0.3cm}
+    \begin{itemize}
+        \item \textbf{edgeai-modelmaker:} Command-line tool for Bring-Your-Own-Data (BYOD) training.
+        \item \textbf{edgeai-benchmark:} Handles Post-Training Quantization and generates hardware-specific executable artifacts.
+    \end{itemize}
+\end{frame}
+
+% ================= SECTION 5: Conclusion ================= %
+\section{Conclusion}
+
+\begin{frame}{Summary}
+    \begin{itemize}
+        \item \textbf{Edge AI \& TinyML} bring intelligence directly to hardware, ensuring low latency and high privacy.
+        \item Architectures like \textbf{YOLOv11} and \textbf{MobileNetV4} push the boundaries of vision at the edge.
+        \item \textbf{Quantization} (INT8/INT4) is critical for shrinking models to fit MCUs and NPUs.
+        \item Ecosystems like \textbf{TI \texttt{edgeai-tensorlab}} abstract the complex compilation process, enabling rapid deployment.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \begin{center}
+        \Huge \textbf{Thank You!}
+
+        \vspace{1cm}
+        \Large Any Questions?
+    \end{center}
+\end{frame}
+
+\end{document}
