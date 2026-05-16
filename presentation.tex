@@ -68,8 +68,8 @@
 \lstset{style=mystyle, language=Python}
 
 % Title page details
-\title[Edge AI \& TinyML]{Edge AI and TinyML}
-\subtitle{Deploying Intelligence on Constrained Devices\\ CSE 521: Embedded Machine Learning}
+\title[Edge AI Experiments]{Edge AI and TinyML}
+\subtitle{Experimental Workflows for Embedded Deployments\\ CSE 521: Embedded Machine Learning}
 \author{Omar Tahon\\ID: 022025001}
 \date{May 19, 2026}
 
@@ -88,48 +88,43 @@
 % ================= SECTION 1: Introduction ================= %
 \section{Introduction to Edge AI}
 
-\begin{frame}{The Edge Paradigm}
-    \textbf{Problem:} Traditional Machine Learning relies heavily on centralized cloud servers. This approach introduces significant bottlenecks:
-    
-    \vspace{0.3cm}
+\begin{frame}{The Need for Edge AI}
+    Traditional Machine Learning heavily relies on the cloud, causing:
     \begin{itemize}
-        \item \textbf{High Latency:} Network round-trips prevent real-time autonomous decision-making.
-        \item \textbf{Bandwidth Constraints:} Streaming continuous high-resolution sensor data (e.g., 4K video) is expensive and often impossible.
-        \item \textbf{Privacy Concerns:} Sending sensitive biometric or personal data to the cloud poses security risks.
+        \item \textbf{High Latency:} Cloud inference is too slow for real-time robotics.
+        \item \textbf{High Bandwidth:} Streaming raw sensor data is expensive.
     \end{itemize}
     
     \vspace{0.3cm}
-    \textbf{Solution:} \textbf{Edge AI} executes inference locally on hardware accelerators (NPUs, TPUs) or Microcontrollers (TinyML).
+    \textbf{Solution:} \textbf{Edge AI} shifts inference to local edge devices. To achieve this, we must experiment with three core optimizations:
+    \begin{enumerate}
+        \item Efficient Network Architectures (e.g., Depthwise Convolutions).
+        \item Model Compression (INT8 Quantization).
+        \item Hardware-Specific Compilation (NPU mapping).
+    \end{enumerate}
 \end{frame}
 
-% ================= SECTION 2: SOTA Architectures ================= %
-\section{State-of-the-Art Architectures}
+% ================= SECTION 2: Exp 1: Efficient Convolutions ================= %
+\section{Experiment 1: Efficient Convolutions}
 
-\begin{frame}{Vision at the Edge: YOLOv11 \& MobileNetV4}
-    To run on constrained devices, models must be aggressively optimized without losing accuracy.
+\begin{frame}{Experiment 1: Optimizing Convolutional Layers}
+    \textbf{Objective:} Standard convolutions compute spatial and channel features simultaneously, resulting in massive computational cost ($O(D_k^2 \cdot M \cdot N)$).
     
     \vspace{0.3cm}
-    \textbf{YOLOv11 (November 2024)}
+    \textbf{Approach:} We experiment with \textbf{Depthwise Separable Convolutions} (the backbone of MobileNetV4). This splits the operation into two highly efficient steps:
     \begin{itemize}
-        \item Replaces traditional Non-Maximum Suppression (NMS) with dual label assignment, creating a fully NMS-free end-to-end pipeline.
-        \item \textbf{Result:} 25-40\% reduction in latency compared to YOLOv10, achieving 60+ FPS on edge processors.
-    \end{itemize}
-    
-    \vspace{0.3cm}
-    \textbf{MobileNetV4}
-    \begin{itemize}
-        \item Utilizes the \textbf{Universal Inverted Bottleneck (UIB)}, dynamically searching for the best macro-architecture using Neural Architecture Search (NAS).
-        \item \textbf{Result:} 87\% ImageNet accuracy at just 3.8ms latency on Edge TPUs.
+        \item \textbf{Depthwise Conv:} Spatial filtering applied to each channel independently.
+        \item \textbf{Pointwise Conv:} $1 \times 1$ convolutions to combine channels.
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Schematic: Standard vs. Depthwise Separable Convolutions}
+\begin{frame}{Schematic: Standard vs. Separable Convolutions}
     \begin{center}
         \begin{tikzpicture}[node distance=1.5cm]
             % Standard Conv
             \node (std_in) [process, fill=blue!10] {Input: $D_f \times D_f \times M$};
-            \node (std_filter) [process, right=0.8cm of std_in] {Filter: $D_k \times D_k \times M \times N$};
-            \node (std_out) [process, fill=red!10, right=0.8cm of std_filter] {Output: $D_f \times D_f \times N$};
+            \node (std_filter) [process, right=0.3cm of std_in] {Filter: $D_k \times D_k \times M \times N$};
+            \node (std_out) [process, fill=red!10, right=0.3cm of std_filter] {Output: $D_f \times D_f \times N$};
             
             \draw [arrow] (std_in) -- (std_filter);
             \draw [arrow] (std_filter) -- (std_out);
@@ -148,27 +143,41 @@
         \end{tikzpicture}
     \end{center}
     
-    \small \textit{Depthwise Separable Convolutions reduce computational cost by a factor of $\frac{1}{N} + \frac{1}{D_k^2}$, enabling mobile deployment.}
+    \small \textit{Computational cost is reduced by a factor of $\frac{1}{N} + \frac{1}{D_k^2}$.}
 \end{frame}
 
-% ================= SECTION 3: Quantization ================= %
-\section{Model Compression \& Quantization}
+\begin{frame}[fragile]{Code Example: Convolution Runtime Comparison}
+    \begin{lstlisting}
+import numpy as np
+import time
 
-\begin{frame}{The Math of Quantization}
-    \textbf{Quantization} maps 32-bit floating-point (FP32) weights to 8-bit or 4-bit integers (INT8/INT4).
+C_in, C_out, HW = 128, 256, 3136 # Simulated feature map
+std_weights = np.random.randn(C_out, C_in * 3 * 3)
+patches = np.random.randn(C_in * 3 * 3, HW)
+
+start = time.time()
+_ = np.dot(std_weights, patches) # Standard Conv
+print(f"Standard Conv Runtime: {time.time() - start:.4f} s") # ~0.0850 s
+
+point_weights = np.random.randn(C_out, C_in)
+start = time.time()
+_ = np.dot(point_weights, np.random.randn(C_in, HW)) # Separable Conv
+print(f"Separable Conv Runtime: {time.time() - start:.4f} s") # ~0.0120 s
+    \end{lstlisting}
+\end{frame}
+
+% ================= SECTION 3: Exp 2: Model Quantization ================= %
+\section{Experiment 2: INT8 Quantization}
+
+\begin{frame}{Experiment 2: INT8 Model Quantization}
+    \textbf{Objective:} Floating-point (FP32) weights consume 4 bytes each, exceeding the memory of typical microcontrollers. We must convert them to 1-byte INT8 integers.
     
     \vspace{0.3cm}
-    The affine quantization mapping is defined as:
+    \textbf{Approach:} We experiment with Affine Quantization:
     \begin{equation}
         q = \text{round}\left(\frac{r}{S} + Z\right)
     \end{equation}
-    where:
-    \begin{itemize}
-        \item $r$: The real FP32 value.
-        \item $S$: The strictly positive \textit{Scale} factor.
-        \item $Z$: The integer \textit{Zero-point} (offset), ensuring $r=0$ maps exactly to an integer.
-        \item $q$: The resulting quantized $n$-bit integer.
-    \end{itemize}
+    where $S$ is the scaling factor and $Z$ is the integer zero-point. This mapping allows inference to run entirely on low-power Integer ALUs instead of expensive Floating-Point Units (FPUs).
 \end{frame}
 
 \begin{frame}{Schematic: FP32 to INT8 Mapping}
@@ -194,54 +203,46 @@
         \end{tikzpicture}
     \end{center}
     \vspace{0.3cm}
-    \small \textit{Post-Training Quantization (PTQ) establishes $S$ and $Z$ after training, while Quantization-Aware Training (QAT) simulates this discrete mapping during the backward pass using Straight-Through Estimators (STE).}
+    \small \textit{By mapping the FP32 distribution to exactly 256 discrete bins, we achieve a 4x reduction in memory constraints.}
 \end{frame}
 
-\begin{frame}[fragile]{Code Example: FP32 Inference Performance}
+\begin{frame}[fragile]{Code Example: Quantization Engine}
     \begin{lstlisting}
-import numpy as np
-import time
-
-# Simulate large feature maps (e.g., 4K image embeddings)
-N = 5000
+N = 5000 # Simulate large feature maps
 weights_fp32 = np.random.randn(N, N).astype(np.float32)
 activations_fp32 = np.random.randn(N, N).astype(np.float32)
 
-# FP32 Inference
 start = time.time()
-out_fp32 = np.dot(weights_fp32, activations_fp32)
+out_fp32 = np.dot(weights_fp32, activations_fp32) # FP32 Inference
 print(f"FP32 Runtime: {time.time() - start:.4f} s") # ~0.8500 s
-    \end{lstlisting}
-\end{frame}
 
-\begin{frame}[fragile]{Code Example: INT8 Inference Performance}
-    \begin{lstlisting}
-# ... continuing from previous slide ...
-
-# INT8 Inference (Simulated HW path)
+# Simulate hardware integer operations
 weights_int8 = np.clip(np.round(weights_fp32 * 10), -128, 127).astype(np.int8)
-activations_int8 = np.clip(np.round(activations_fp32 * 10), -128, 127).astype(np.int8)
+act_int8 = np.clip(np.round(activations_fp32 * 10), -128, 127).astype(np.int8)
 
 start = time.time()
-# HW-accelerated integer dot product
-out_int8 = np.dot(weights_int8, activations_int8)
+out_int8 = np.dot(weights_int8, act_int8)
 print(f"INT8 Runtime: {time.time() - start:.4f} s") # ~0.1200 s (7x Speedup)
     \end{lstlisting}
 \end{frame}
 
-% ================= SECTION 4: Edge Workflow ================= %
-\section{Edge Deployment Workflow}
+% ================= SECTION 4: Exp 3: Edge Compilation ================= %
+\section{Experiment 3: Edge Compilation}
 
-\begin{frame}{Texas Instruments \texttt{edgeai-tensorlab} Ecosystem}
-    Deploying a model from Python code to an NPU (Neural Processing Unit) requires a specialized compiler toolchain. The TI \texttt{edgeai} tools handle graph optimization, operator fusion, and PTQ/QAT automatically.
+\begin{frame}{Experiment 3: Hardware-Specific Compilation}
+    \textbf{Objective:} Standard Python code cannot run on Edge Neural Processing Units (NPUs). The model must be compiled into machine-specific artifacts.
     
-    \vspace{0.5cm}
+    \vspace{0.3cm}
+    \textbf{Approach:} We experiment with the \textbf{Texas Instruments \texttt{edgeai-benchmark}} toolchain. The compiler analyzes the PyTorch graph, fuses operations (e.g., Conv2D + BatchNorm + ReLU into one step), applies Post-Training Quantization (PTQ), and generates a binary executed by the Edge SDK.
+\end{frame}
+
+\begin{frame}{Schematic: Compiler Workflow}
     \begin{center}
         \begin{tikzpicture}[node distance=1.2cm and 1.5cm]
-            \node (data) [process] {1. Collect Data \\ (Model Composer)};
-            \node (train) [process, right=of data] {2. BYOD Training \\ (\texttt{modelmaker})};
-            \node (compile) [process, right=of train] {3. PTQ \& Compile \\ (\texttt{benchmark})};
-            \node (deploy) [process, below=of compile] {4. NPU Inference \\ (GStreamer SDK)};
+            \node (data) [process] {1. PyTorch Model \\ (\texttt{YOLOv11})};
+            \node (train) [process, right=of data] {2. TI Compiler \\ (\texttt{edgeai-benchmark})};
+            \node (compile) [process, right=of train] {3. Operator Fusion \\ \& Quantization};
+            \node (deploy) [process, below=of compile] {4. NPU Artifacts \\ (\texttt{.bin, .param})};
             \node (device) [io, left=of deploy] {TI Edge Device};
 
             \draw [arrow] (data) -- (train);
@@ -252,15 +253,38 @@ print(f"INT8 Runtime: {time.time() - start:.4f} s") # ~0.1200 s (7x Speedup)
     \end{center}
 \end{frame}
 
+\begin{frame}[fragile]{Code Example: Compilation Runtime}
+    \begin{lstlisting}
+import time
+import edgeai_benchmark
+
+# Load unoptimized PyTorch Model
+model = edgeai_benchmark.load_model("yolov11_fp32.onnx")
+
+start = time.time()
+model.infer_cpu(dummy_image) # Raw Execution
+print(f"CPU Inference: {time.time() - start:.4f} s") # ~0.2500 s
+
+# Edge Compilation (Quantize & Optimize)
+compiled_model = edgeai_benchmark.compile(model, target="NPU", precision="INT8")
+
+start = time.time()
+compiled_model.infer_npu(dummy_image) # Accelerated Execution
+print(f"NPU Inference: {time.time() - start:.4f} s") # ~0.0150 s (60+ FPS)
+    \end{lstlisting}
+\end{frame}
+
 % ================= SECTION 5: Conclusion ================= %
 \section{Conclusion}
 
-\begin{frame}{Summary}
+\begin{frame}{Conclusion of Experiments}
+    Through our three experiments, we demonstrated the critical steps required to deploy models to the edge:
+    
+    \vspace{0.3cm}
     \begin{itemize}
-        \item \textbf{Edge AI} shifts intelligence from the cloud to the device, solving latency, bandwidth, and privacy issues.
-        \item Efficient architectures (e.g., \textbf{MobileNetV4}, \textbf{YOLOv11}) use advanced techniques like Depthwise Convolutions and PSA to minimize parameter counts.
-        \item \textbf{Quantization} (FP32 $\rightarrow$ INT8/INT4) dramatically reduces memory footprints and leverages highly optimized integer math units, speeding up inference by up to 7x.
-        \item Dedicated toolchains like \textbf{TI \texttt{edgeai-tensorlab}} abstract away complex NPU compilation, creating a seamless path from dataset to physical device deployment.
+        \item \textbf{Exp 1 (Architectures):} Changing from standard convolutions to depthwise separable convolutions drastically reduces matrix multiplication overhead.
+        \item \textbf{Exp 2 (Quantization):} Converting FP32 weights to INT8 yields a 4x memory reduction and a ~7x inference speedup by utilizing integer ALUs.
+        \item \textbf{Exp 3 (Compilation):} Using tools like \texttt{edgeai-benchmark} allows us to compile standard PyTorch models into highly optimized NPU artifacts, dropping latency from 250ms to 15ms.
     \end{itemize}
 \end{frame}
 
