@@ -9,7 +9,6 @@
 \usepackage{xcolor}
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric, arrows, positioning}
-\usepackage[default]{opensans}
 
 % University Theme Colors
 \definecolor{primaryColor}{RGB}{0,0,0}
@@ -149,11 +148,11 @@ In this experiment, we explore the conceptual workflow of deploying a model usin
 \subsection{The \texttt{edgeai-tensorlab} Workflow}
 The TI ecosystem provides an end-to-end pipeline:
 \begin{center}
-    \begin{tikzpicture}[node distance=4cm]
+    \begin{tikzpicture}[node distance=1.5cm]
         \node (data) [process] {1. Dataset \\ (Model Composer)};
-        \node (train) [process, right of=data] {2. Train \& Optimize \\ (\texttt{edgeai-modelmaker})};
-        \node (compile) [process, right of=train] {3. Compile \& Quantize \\ (\texttt{edgeai-benchmark})};
-        \node (deploy) [process, below of=compile, yshift=2.5cm] {4. Edge SDK \\ Inference};
+        \node (train) [process, below=of data] {2. Train \& Optimize \\ (\texttt{edgeai-modelmaker})};
+        \node (compile) [process, below=of train] {3. Compile \& Quantize \\ (\texttt{edgeai-benchmark})};
+        \node (deploy) [process, below=of compile] {4. Edge SDK \\ Inference};
 
         \draw [arrow] (data) -- (train);
         \draw [arrow] (train) -- (compile);
